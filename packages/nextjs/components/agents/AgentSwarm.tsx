@@ -43,19 +43,19 @@ export function AgentSwarm() {
       title="An autonomous orchestrator pays N sub-agents via x402 — no MetaMask, no human in the loop"
       style={{
         width: "100%",
-        padding: "10px 12px",
-        borderRadius: 6,
-        fontSize: 12,
+        padding: "11px 14px",
+        borderRadius: 12,
+        fontSize: 13,
         fontWeight: 700,
-        letterSpacing: "0.04em",
-        textTransform: "uppercase",
+        letterSpacing: "0.01em",
         cursor: running ? "not-allowed" : "pointer",
-        color: "var(--bg-0)",
+        color: "#fff",
         background: "linear-gradient(90deg, var(--monad) 0%, var(--settle) 140%)",
         border: "1px solid transparent",
+        boxShadow: "var(--shadow)",
       }}
     >
-      🤖 {running ? "swarming…" : note ? `agent swarm · ${note}` : `agent swarm (${COUNT}) · autonomous`}
+      🤖 {running ? "Swarming…" : note ? `Agent swarm · ${note}` : `Agent swarm (${COUNT}) · autonomous`}
     </button>
   );
 }

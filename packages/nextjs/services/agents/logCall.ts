@@ -15,10 +15,18 @@ const ZERO = "0x0000000000000000000000000000000000000000";
 // hands out sequential values, so concurrent/rapid sends each get a fresh nonce.
 function buildWallet() {
   const pk = process.env.SERVER_SIGNER_PRIVATE_KEY;
-  if (!pk) return null;
+  if (!pk) {
+    console.warn(
+      "[logCall] SERVER_SIGNER_PRIVATE_KEY is not set — on-chain heartbeats are DISABLED, so stream " +
+        "rows show 'settled' with no explorer link. Set it in the Vercel project env vars and redeploy.",
+    );
+    return null;
+  }
   const account = privateKeyToAccount(pk as `0x${string}`, { nonceManager });
   return createWalletClient({ account, chain: monadTestnet, transport: http("https://testnet-rpc.monad.xyz") });
 }
+
+let warnedNoAddress = false;
 
 let cachedWallet: ReturnType<typeof buildWallet> = null;
 let initialized = false;
@@ -48,7 +56,16 @@ export async function logCallOnChain(
   priceMicroUsdc: number,
   taskHash: `0x${string}`,
 ): Promise<`0x${string}` | null> {
-  if (!AGENT_BAZAAR_ADDRESS || AGENT_BAZAAR_ADDRESS.toLowerCase() === ZERO) return null;
+  if (!AGENT_BAZAAR_ADDRESS || AGENT_BAZAAR_ADDRESS.toLowerCase() === ZERO) {
+    if (!warnedNoAddress) {
+      warnedNoAddress = true;
+      console.warn(
+        "[logCall] NEXT_PUBLIC_AGENT_BAZAAR_ADDRESS is unset/zero — heartbeats disabled (no explorer " +
+          "link). This is a BUILD-time var: set it in Vercel, then trigger a fresh deploy.",
+      );
+    }
+    return null;
+  }
   const wallet = getWallet();
   if (!wallet) return null;
 
@@ -67,6 +84,45 @@ export async function logCallOnChain(
       return await attempt();
     } catch {
       return await attempt(); // one retry — nonceManager re-syncs and the RPC hiccup usually clears
+    }
+  });
+  sendQueue = send.then(
+    () => undefined,
+    () => undefined,
+  );
+  return send;
+}
+
+/**
+ * Sends logTip — the on-chain reputation log for a viewer tip, AFTER its USDC transfer was verified
+ * server-side (see /api/tip). Same singleton wallet + nonceManager + send-queue as logCall, so tip
+ * heartbeats serialize safely alongside call heartbeats. `ref` is the USDC transfer tx hash.
+ */
+export async function logTipOnChain(
+  agentId: number,
+  tipper: `0x${string}`,
+  amountMicroUsdc: number,
+  ref: `0x${string}`,
+): Promise<`0x${string}` | null> {
+  if (!AGENT_BAZAAR_ADDRESS || AGENT_BAZAAR_ADDRESS.toLowerCase() === ZERO) return null;
+  const wallet = getWallet();
+  if (!wallet) return null;
+
+  const attempt = () =>
+    wallet.writeContract({
+      address: AGENT_BAZAAR_ADDRESS,
+      abi: agentBazaarAbi,
+      functionName: "logTip",
+      args: [BigInt(agentId), tipper, BigInt(amountMicroUsdc), ref],
+      chain: monadTestnet,
+      gas: 200_000n,
+    });
+
+  const send = sendQueue.then(async () => {
+    try {
+      return await attempt();
+    } catch {
+      return await attempt();
     }
   });
   sendQueue = send.then(

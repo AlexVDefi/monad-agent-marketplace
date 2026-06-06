@@ -17,6 +17,8 @@ export interface FeedRow {
   glyph: string;
   priceMicroUsdc: number;
   phase: Phase;
+  /** "call" (an x402 agent payment, the default) or "tip" (a viewer-sent USDC bonus). */
+  kind?: "call" | "tip";
   taskHash?: `0x${string}`;
   txHash?: `0x${string}`;
   prompt?: string;
@@ -39,22 +41,52 @@ interface ChainConfirm {
   glyph?: string;
 }
 
+interface TipInput {
+  agentId: number;
+  agentName: string;
+  glyph: string;
+  microUsdc: number;
+  /** The USDC transfer tx hash — both the explorer link and the dedup key vs the Tipped event. */
+  txHash: `0x${string}`;
+}
+
+interface TipChainConfirm {
+  /** The USDC transfer tx hash carried in the Tipped event's `ref` — matches a local tip row's id. */
+  ref: `0x${string}`;
+  agentId: number;
+  microUsdc: number;
+  agentName?: string;
+  glyph?: string;
+}
+
 interface FeedState {
   rows: FeedRow[];
   totalMicroUsdc: number;
   settledCount: number;
+  /**
+   * Session tip totals (kept separate from call settlements so the Σ stays "agent revenue"). These
+   * are this-session counters; the authoritative PER-AGENT tip totals come from chain (useAgentStats).
+   */
+  tipsMicroUsdc: number;
+  tipCount: number;
   addRow: (row: FeedRow) => void;
   patchRow: (id: string, patch: Partial<FeedRow>) => void;
   /** Called on the 200 response: payment settled on Monad. Idempotent; counts the total once. */
   markSettled: (id: string) => void;
   /** Called from the CallLogged ws event: attaches the explorer tx, or adds a foreign settled row. */
   confirmFromChain: (c: ChainConfirm) => void;
+  /** Our own confirmed tip → streams a tip row + bumps the session tip totals (instant feedback). */
+  addTip: (tip: TipInput) => void;
+  /** Tipped ws event: dedups our own tip row, or streams in a tip made on another device. */
+  confirmTipFromChain: (c: TipChainConfirm) => void;
 }
 
 export const useFeedStore = create<FeedState>(set => ({
   rows: [],
   totalMicroUsdc: 0,
   settledCount: 0,
+  tipsMicroUsdc: 0,
+  tipCount: 0,
 
   addRow: row => set(s => ({ rows: [row, ...s.rows].slice(0, MAX_ROWS) })),
 
@@ -104,6 +136,52 @@ export const useFeedStore = create<FeedState>(set => ({
         rows: [row, ...s.rows].slice(0, MAX_ROWS),
         totalMicroUsdc: s.totalMicroUsdc + priceMicroUsdc,
         settledCount: s.settledCount + 1,
+      };
+    }),
+
+  addTip: ({ agentId, agentName, glyph, microUsdc, txHash }) =>
+    set(s => {
+      if (s.rows.some(r => r.id === `tip:${txHash}`)) return s; // already streamed (e.g. ws beat us)
+      const row: FeedRow = {
+        id: `tip:${txHash}`,
+        kind: "tip",
+        agentId,
+        agentName,
+        glyph,
+        priceMicroUsdc: microUsdc,
+        phase: "settled",
+        txHash,
+        bornAt: Date.now(),
+        source: "client",
+      };
+      return {
+        rows: [row, ...s.rows].slice(0, MAX_ROWS),
+        tipsMicroUsdc: s.tipsMicroUsdc + microUsdc,
+        tipCount: s.tipCount + 1,
+      };
+    }),
+
+  confirmTipFromChain: ({ ref, agentId, microUsdc, agentName, glyph }) =>
+    set(s => {
+      // Our own tip already streamed via addTip (same id) → nothing to do; don't double-count.
+      if (s.rows.some(r => r.id === `tip:${ref}`)) return s;
+      // A tip from another wallet/device → stream it in. `ref` is the USDC transfer tx (the link).
+      const row: FeedRow = {
+        id: `tip:${ref}`,
+        kind: "tip",
+        agentId,
+        agentName: agentName ?? `Agent #${agentId}`,
+        glyph: glyph ?? "◆",
+        priceMicroUsdc: microUsdc,
+        phase: "settled",
+        txHash: ref,
+        bornAt: Date.now(),
+        source: "chain",
+      };
+      return {
+        rows: [row, ...s.rows].slice(0, MAX_ROWS),
+        tipsMicroUsdc: s.tipsMicroUsdc + microUsdc,
+        tipCount: s.tipCount + 1,
       };
     }),
 }));

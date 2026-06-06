@@ -58,6 +58,36 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const settledUsd = isUpto ? meteredSettleUsd(costUsd, maxUsd) : agent.priceMicroUsdc / 1_000_000;
     const settledMicro = usdToMicro(settledUsd);
 
+    // On-chain heartbeat records the ACTUAL settled amount. We AWAIT its submission (not its
+    // confirmation) so the explorer tx hash can ride back on the 200 — the stream row then links out
+    // immediately, independent of the CallLogged websocket event (which still merges idempotently by
+    // taskHash, so no duplicate). Best-effort + time-boxed: if the write is slow/unavailable we return
+    // null and the ws event stays the fallback, exactly as before.
+    // Headroom for serverless cold starts (Vercel): the warm local process submits in well under a
+    // second, but a cold function's first RPC round-trips to Monad can be slower. Stays comfortably
+    // inside any plan's function limit.
+    const LOGCALL_TIMEOUT_MS = 5000;
+    let timedOut = false;
+    const logTxHash = await Promise.race([
+      logCallOnChain(agent.agentId, settledMicro, taskHash).catch((err: unknown) => {
+        console.error("[logCall] failed:", err instanceof Error ? err.message : err);
+        return null;
+      }),
+      new Promise<`0x${string}` | null>(resolve =>
+        setTimeout(() => {
+          timedOut = true;
+          resolve(null);
+        }, LOGCALL_TIMEOUT_MS),
+      ),
+    ]);
+    if (!logTxHash) {
+      // No hash on the 200 → the row links out only if the CallLogged ws event later lands. Surface
+      // WHY (timeout vs skipped/failed) so Vercel Runtime Logs make the deploy issue obvious.
+      console.warn(
+        `[logCall] no tx hash for ${agent.id} (task ${taskHash.slice(0, 10)}…) — ${timedOut ? `timed out after ${LOGCALL_TIMEOUT_MS}ms` : "skipped or failed (see logs above)"}.`,
+      );
+    }
+
     const res = NextResponse.json({
       agent: agent.id,
       agentId: agent.agentId,
@@ -68,15 +98,12 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       settledMicroUsdc: settledMicro,
       costMicroUsdc: usdToMicro(costUsd),
       taskHash,
+      // The CallLogged heartbeat tx — the stream row's explorer link. null if the write timed out.
+      txHash: logTxHash,
     });
 
     // Metered settlement: capture only the actual amount (≤ the buyer's authorized max).
     if (isUpto) setSettlementOverrides(res, { amount: `$${settledUsd.toFixed(6)}` });
-
-    // On-chain heartbeat records the ACTUAL settled amount.
-    void logCallOnChain(agent.agentId, settledMicro, taskHash).catch((err: unknown) =>
-      console.error("[logCall] failed:", err instanceof Error ? err.message : err),
-    );
     // Observability sink: prompt + output + cost vs charged + margin.
     void appendCallLog({
       agent: agent.id,

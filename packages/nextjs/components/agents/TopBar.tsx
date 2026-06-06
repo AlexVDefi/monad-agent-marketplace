@@ -1,6 +1,5 @@
 "use client";
 
-import { SettledCounter } from "./SettledCounter";
 import { chipStyle } from "./paneStyles";
 import { RainbowKitCustomConnectButton } from "~~/components/scaffold-eth";
 
@@ -18,29 +17,20 @@ export function TopBar() {
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <span style={{ color: "var(--monad)", fontSize: 18 }}>◣</span>
-        <span style={{ fontSize: 16, fontWeight: 700, letterSpacing: "0.04em" }}>AGENT BAZAAR</span>
+        <span style={{ fontSize: 20, lineHeight: 1 }}>🍬</span>
+        <span style={{ fontSize: 17, fontWeight: 700, letterSpacing: "0.005em" }}>Agent Bazaar</span>
       </div>
 
       <span style={chipStyle}>
-        monad testnet · 10143
-        <span className="anim-dot" style={{ color: "var(--settle)" }}>
-          ●
-        </span>
+        Monad testnet · 10143
+        <span
+          className="anim-dot"
+          style={{ width: 7, height: 7, borderRadius: 999, background: "var(--settle)", display: "inline-block" }}
+        />
         live
       </span>
 
       <div style={{ flex: 1 }} />
-
-      <div style={{ textAlign: "right" }}>
-        <div style={{ fontSize: 10, letterSpacing: "0.12em", color: "var(--text-lo)", textTransform: "uppercase" }}>
-          Σ settled
-        </div>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 6, justifyContent: "flex-end" }}>
-          <SettledCounter />
-          <span style={{ fontSize: 12, color: "var(--text-mid)" }}>USDC</span>
-        </div>
-      </div>
 
       <RainbowKitCustomConnectButton />
     </header>

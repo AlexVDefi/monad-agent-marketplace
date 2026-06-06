@@ -1,6 +1,7 @@
 "use client";
 
 import { useFeedStore } from "./feedStore";
+import { ArrowTopRightOnSquareIcon } from "@heroicons/react/16/solid";
 
 const EXPLORER = process.env.NEXT_PUBLIC_EXPLORER_URL || "https://testnet.monadexplorer.com";
 const short = (h?: string) => (h ? `${h.slice(0, 6)}…${h.slice(-4)}` : "");
@@ -56,9 +57,10 @@ export function HistoryPanel() {
             style={{
               background: "var(--bg-2)",
               border: "1px solid var(--line)",
-              borderLeft: `2px solid ${r.phase === "error" ? "var(--danger)" : "var(--settle)"}`,
-              borderRadius: 8,
-              padding: 12,
+              borderLeft: `3px solid ${r.phase === "error" ? "var(--danger)" : "var(--settle)"}`,
+              borderRadius: 14,
+              boxShadow: "var(--shadow)",
+              padding: 14,
               display: "flex",
               flexDirection: "column",
               gap: 6,
@@ -81,18 +83,18 @@ export function HistoryPanel() {
 
             {r.prompt && (
               <div>
-                <Label>prompt</Label>
+                <Label>Prompt</Label>
                 <Body color="var(--text-mid)">{r.prompt}</Body>
               </div>
             )}
             {r.error ? (
               <div>
-                <Label danger>error</Label>
+                <Label danger>Error</Label>
                 <Body color="var(--text-mid)">{r.error}</Body>
               </div>
             ) : r.output ? (
               <div>
-                <Label>result</Label>
+                <Label>Result</Label>
                 <Body color="var(--text-hi)">{r.output}</Body>
               </div>
             ) : null}
@@ -116,9 +118,16 @@ export function HistoryPanel() {
                   href={`${EXPLORER}/tx/${r.txHash}`}
                   target="_blank"
                   rel="noreferrer"
-                  style={{ color: "var(--settle)", textDecoration: "none" }}
+                  style={{
+                    color: "var(--settle)",
+                    textDecoration: "none",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 3,
+                  }}
                 >
-                  ↗ {short(r.txHash)}
+                  <ArrowTopRightOnSquareIcon aria-hidden style={{ width: 11, height: 11 }} />
+                  {short(r.txHash)}
                 </a>
               ) : (
                 <span>{r.phase}</span>
@@ -135,10 +144,9 @@ function Label({ children, danger }: { children: React.ReactNode; danger?: boole
   return (
     <div
       style={{
-        fontSize: 9,
+        fontSize: 10,
         fontWeight: 700,
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
+        letterSpacing: "0.01em",
         color: danger ? "var(--danger)" : "var(--text-lo)",
         marginBottom: 3,
       }}

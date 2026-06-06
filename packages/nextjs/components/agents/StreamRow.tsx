@@ -1,6 +1,7 @@
 import { memo, useEffect, useRef, useState } from "react";
 import { PhasePill } from "./PhasePill";
 import type { FeedRow } from "./feedStore";
+import { ArrowTopRightOnSquareIcon, ChevronDownIcon, ChevronRightIcon, HeartIcon } from "@heroicons/react/16/solid";
 
 const EXPLORER = process.env.NEXT_PUBLIC_EXPLORER_URL || "https://testnet.monadexplorer.com";
 
@@ -30,19 +31,53 @@ function Timer({ bornAt }: { bornAt: number }) {
   );
 }
 
+/** Tip rows aren't an x402 lifecycle — they land already-settled, so they get their own pill. */
+function TipPill() {
+  return (
+    <span
+      className="tnum"
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 5,
+        width: 96,
+        height: 24,
+        borderRadius: 999,
+        fontSize: 11,
+        fontWeight: 700,
+        letterSpacing: "0.01em",
+        color: "var(--tip)",
+        background: "color-mix(in oklab, var(--tip) 14%, transparent)",
+        border: "1px solid color-mix(in oklab, var(--tip) 38%, transparent)",
+      }}
+    >
+      <HeartIcon aria-hidden style={{ width: 12, height: 12 }} />
+      <span>Tip</span>
+    </span>
+  );
+}
+
 export const StreamRow = memo(function StreamRow({ row }: { row: FeedRow }) {
+  const isTip = row.kind === "tip";
   const settled = row.phase === "settled";
   const failed = row.phase === "error";
   const expandable = Boolean(row.prompt || row.output);
   const [open, setOpen] = useState(false);
 
+  const accent = isTip ? "var(--tip)" : "var(--settle)";
+
   return (
     <div
-      className={`stream-row anim-row-enter ${settled ? "anim-settle-glow" : ""}`}
+      className={`stream-row anim-row-enter ${settled && !isTip ? "anim-settle-glow" : ""}`}
       style={{
         borderBottom: "1px solid var(--line)",
-        background: settled ? "color-mix(in oklab, var(--settle) 6%, var(--bg-2))" : "var(--bg-2)",
-        borderLeft: `3px solid ${settled ? "var(--settle)" : failed ? "var(--danger)" : "transparent"}`,
+        background: isTip
+          ? "color-mix(in oklab, var(--tip) 7%, var(--bg-2))"
+          : settled
+            ? "color-mix(in oklab, var(--settle) 6%, var(--bg-2))"
+            : "var(--bg-2)",
+        borderLeft: `3px solid ${isTip ? "var(--tip)" : settled ? "var(--settle)" : failed ? "var(--danger)" : "transparent"}`,
       }}
     >
       <div
@@ -57,14 +92,15 @@ export const StreamRow = memo(function StreamRow({ row }: { row: FeedRow }) {
           cursor: expandable ? "pointer" : "default",
         }}
       >
-        <PhasePill phase={row.phase} />
+        {isTip ? <TipPill /> : <PhasePill phase={row.phase} />}
 
         <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-          {expandable && (
-            <span aria-hidden style={{ color: "var(--text-lo)", fontSize: 10, width: 8 }}>
-              {open ? "▾" : "▸"}
-            </span>
-          )}
+          {expandable &&
+            (open ? (
+              <ChevronDownIcon aria-hidden style={{ width: 12, height: 12, color: "var(--text-lo)", flexShrink: 0 }} />
+            ) : (
+              <ChevronRightIcon aria-hidden style={{ width: 12, height: 12, color: "var(--text-lo)", flexShrink: 0 }} />
+            ))}
           <span aria-hidden style={{ fontSize: 13 }}>
             {row.glyph}
           </span>
@@ -86,11 +122,15 @@ export const StreamRow = memo(function StreamRow({ row }: { row: FeedRow }) {
           style={{
             fontSize: 14,
             fontWeight: 700,
-            textAlign: "right",
-            color: settled ? "var(--settle)" : "var(--text-hi)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "flex-end",
+            gap: 4,
+            color: isTip ? "var(--tip)" : settled ? "var(--settle)" : "var(--text-hi)",
             transition: "color 220ms var(--ease-out)",
           }}
         >
+          {isTip && <HeartIcon aria-hidden style={{ width: 11, height: 11 }} />}
           {usd(row.priceMicroUsdc)}
         </div>
 
@@ -102,12 +142,23 @@ export const StreamRow = memo(function StreamRow({ row }: { row: FeedRow }) {
               target="_blank"
               rel="noreferrer"
               onClick={e => e.stopPropagation()}
-              style={{ color: "var(--settle)", textDecoration: "none", cursor: "pointer" }}
+              style={{
+                color: accent,
+                textDecoration: "none",
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 3,
+                justifyContent: "flex-end",
+              }}
               onMouseEnter={e => (e.currentTarget.style.textDecoration = "underline")}
               onMouseLeave={e => (e.currentTarget.style.textDecoration = "none")}
             >
-              ↗ {short(row.txHash)}
+              <ArrowTopRightOnSquareIcon aria-hidden style={{ width: 11, height: 11, flexShrink: 0 }} />
+              {short(row.txHash)}
             </a>
+          ) : isTip ? (
+            <span style={{ color: "var(--tip)" }}>tipped</span>
           ) : failed ? (
             <span style={{ color: "var(--danger)" }}>{row.error ? "error" : "retry"}</span>
           ) : settled ? (
@@ -125,18 +176,18 @@ export const StreamRow = memo(function StreamRow({ row }: { row: FeedRow }) {
         >
           {row.prompt && (
             <div>
-              <Label>prompt</Label>
+              <Label>Prompt</Label>
               <Body color="var(--text-mid)">{row.prompt}</Body>
             </div>
           )}
           {row.error ? (
             <div>
-              <Label danger>error</Label>
+              <Label danger>Error</Label>
               <Body color="var(--text-mid)">{row.error}</Body>
             </div>
           ) : row.output ? (
             <div>
-              <Label>result</Label>
+              <Label>Result</Label>
               <Body color="var(--text-hi)">{row.output}</Body>
             </div>
           ) : null}
@@ -150,10 +201,9 @@ function Label({ children, danger }: { children: React.ReactNode; danger?: boole
   return (
     <div
       style={{
-        fontSize: 9,
+        fontSize: 10,
         fontWeight: 700,
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
+        letterSpacing: "0.01em",
         color: danger ? "var(--danger)" : "var(--text-lo)",
         marginBottom: 3,
       }}

@@ -12,6 +12,7 @@ import { AGENTS } from "~~/services/agents/registry";
  */
 export function useCallLoggedFeed() {
   const confirmFromChain = useFeedStore(s => s.confirmFromChain);
+  const confirmTipFromChain = useFeedStore(s => s.confirmTipFromChain);
 
   useScaffoldWatchContractEvent({
     contractName: "AgentBazaar",
@@ -31,6 +32,27 @@ export function useCallLoggedFeed() {
           txHash: log.transactionHash as `0x${string}`,
           agentId,
           priceMicroUsdc: Number(args.priceMicroUsdc ?? 0n),
+          agentName: meta?.name,
+          glyph: meta?.glyph,
+        });
+      });
+    },
+  });
+
+  // Tips stream in the same feed: our own row dedups by `ref`; a tip from another device shows up.
+  useScaffoldWatchContractEvent({
+    contractName: "AgentBazaar",
+    eventName: "Tipped",
+    onLogs: logs => {
+      logs.forEach(log => {
+        const args = log.args as { agentId?: bigint; amountMicroUsdc?: bigint; ref?: string };
+        if (args.ref == null || args.agentId == null) return;
+        const agentId = Number(args.agentId);
+        const meta = AGENTS.find(a => a.agentId === agentId);
+        confirmTipFromChain({
+          ref: String(args.ref) as `0x${string}`,
+          agentId,
+          microUsdc: Number(args.amountMicroUsdc ?? 0n),
           agentName: meta?.name,
           glyph: meta?.glyph,
         });

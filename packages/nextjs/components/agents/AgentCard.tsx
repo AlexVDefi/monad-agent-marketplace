@@ -47,20 +47,24 @@ export function AgentCard({ agent }: { agent: AgentMeta }) {
       style={{
         background: "var(--bg-2)",
         border: "1px solid var(--line)",
-        borderRadius: 8,
-        padding: 12,
+        borderRadius: 14,
+        padding: 14,
         display: "flex",
         flexDirection: "column",
         gap: 8,
-        transition: "border-color 160ms var(--ease-out), box-shadow 160ms var(--ease-out)",
+        boxShadow: "var(--shadow)",
+        transition:
+          "border-color 160ms var(--ease-out), box-shadow 160ms var(--ease-out), transform 160ms var(--ease-out)",
       }}
       onMouseEnter={e => {
         e.currentTarget.style.borderColor = "var(--line-strong)";
-        e.currentTarget.style.boxShadow = "0 6px 20px -8px rgba(0,0,0,0.6)";
+        e.currentTarget.style.boxShadow = "var(--shadow-lift)";
+        e.currentTarget.style.transform = "translateY(-2px)";
       }}
       onMouseLeave={e => {
         e.currentTarget.style.borderColor = "var(--line)";
-        e.currentTarget.style.boxShadow = "none";
+        e.currentTarget.style.boxShadow = "var(--shadow)";
+        e.currentTarget.style.transform = "none";
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -72,15 +76,14 @@ export function AgentCard({ agent }: { agent: AgentMeta }) {
           style={{
             fontSize: 9,
             fontWeight: 700,
-            letterSpacing: "0.06em",
-            padding: "2px 6px",
-            borderRadius: 4,
-            textTransform: "uppercase",
-            color: isLlm ? "var(--monad-bright)" : "var(--settle)",
+            letterSpacing: "0.01em",
+            padding: "2px 8px",
+            borderRadius: 999,
+            color: isLlm ? "var(--monad-deep)" : "var(--settle)",
             background: `color-mix(in oklab, ${isLlm ? "var(--monad)" : "var(--settle)"} 14%, transparent)`,
           }}
         >
-          {isLlm ? "LLM" : "instant"}
+          {isLlm ? "LLM" : "Instant"}
         </span>
       </div>
 
@@ -108,8 +111,8 @@ export function AgentCard({ agent }: { agent: AgentMeta }) {
           width: "100%",
           background: "var(--bg-0)",
           border: "1px solid var(--line)",
-          borderRadius: 6,
-          padding: "6px 8px",
+          borderRadius: 10,
+          padding: "8px 10px",
           fontSize: 12,
           color: "var(--text-hi)",
           outline: "none",
@@ -124,21 +127,20 @@ export function AgentCard({ agent }: { agent: AgentMeta }) {
         disabled={!ready || busy}
         style={{
           width: "100%",
-          padding: "8px 10px",
-          borderRadius: 6,
-          fontSize: 12,
+          padding: "9px 12px",
+          borderRadius: 12,
+          fontSize: 13,
           fontWeight: 700,
-          letterSpacing: "0.04em",
-          textTransform: "uppercase",
+          letterSpacing: "0.01em",
           cursor: !ready || busy ? "not-allowed" : "pointer",
           border: "1px solid transparent",
-          color: !ready ? "var(--text-lo)" : "var(--bg-0)",
+          color: !ready ? "var(--text-lo)" : "#fff",
           background: !ready ? "var(--bg-3)" : busy ? "var(--monad-deep)" : "var(--monad)",
           transition: "background 120ms var(--ease-out)",
         }}
         title={ready ? `Pay ${agent.priceUsd} and call ${agent.name}` : "Connect a wallet on Monad testnet first"}
       >
-        {!ready ? "connect wallet" : busy ? "calling…" : "call ▸"}
+        {!ready ? "Connect wallet" : busy ? "Calling…" : "Call"}
       </button>
     </div>
   );

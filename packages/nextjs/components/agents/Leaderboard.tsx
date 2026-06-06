@@ -3,15 +3,19 @@
 import { useFeedStore } from "./feedStore";
 import { paneHeaderStyle } from "./paneStyles";
 import { useAgentStats } from "./useAgentStats";
+import { TipButton } from "./vending/TipButton";
 import { useAccount } from "wagmi";
 import { AGENTS, type AgentMeta } from "~~/services/agents/registry";
 
-/** One leaderboard row: on-chain calls + 👍 (both persist across refresh) + a rate button. */
+/** One leaderboard row: on-chain calls + 👍 + tips (all persist across refresh) + rate & tip buttons. */
+const fmtUsd = (micro: number) => `$${(micro / 1e6).toFixed(2)}`;
+
 function LeaderEntry({
   agent,
   rank,
   calls,
   upvotes,
+  tipMicro,
   onRate,
   canRate,
 }: {
@@ -19,6 +23,7 @@ function LeaderEntry({
   rank: number;
   calls: number;
   upvotes: number;
+  tipMicro: number;
   onRate: (id: number) => void;
   canRate: boolean;
 }) {
@@ -30,11 +35,12 @@ function LeaderEntry({
         gridTemplateColumns: "22px 1fr auto",
         alignItems: "center",
         gap: 8,
-        padding: "9px 10px",
+        padding: "10px 12px",
         background: "var(--bg-2)",
         border: "1px solid var(--line)",
-        borderLeft: `2px solid ${top ? "var(--monad)" : "var(--line)"}`,
-        borderRadius: 8,
+        borderLeft: `3px solid ${top ? "var(--monad)" : "var(--line-strong)"}`,
+        borderRadius: 14,
+        boxShadow: "var(--shadow)",
       }}
     >
       <span
@@ -60,39 +66,51 @@ function LeaderEntry({
         </div>
         <div className="tnum" style={{ fontSize: 11, color: "var(--text-lo)" }}>
           {calls} calls · {upvotes} 👍
+          {tipMicro > 0 && <span style={{ color: "var(--tip)" }}> · 💗 {fmtUsd(tipMicro)}</span>}
         </div>
       </div>
-      <button
-        onClick={() => onRate(agent.agentId)}
-        disabled={!canRate}
-        title={canRate ? `Rate ${agent.name} 👍 (writes on-chain)` : "Connect a wallet to rate"}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 4,
-          padding: "5px 9px",
-          borderRadius: 6,
-          fontSize: 12,
-          fontWeight: 700,
-          cursor: canRate ? "pointer" : "not-allowed",
-          color: canRate ? "var(--monad-bright)" : "var(--text-lo)",
-          background: "color-mix(in oklab, var(--monad) 12%, transparent)",
-          border: "1px solid var(--line-strong)",
-        }}
-      >
-        👍<span className="tnum">{upvotes}</span>
-      </button>
+      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        <button
+          onClick={() => onRate(agent.agentId)}
+          disabled={!canRate}
+          title={canRate ? `Rate ${agent.name} 👍 (writes on-chain)` : "Connect a wallet to rate"}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 4,
+            padding: "5px 10px",
+            borderRadius: 10,
+            fontSize: 12,
+            fontWeight: 700,
+            cursor: canRate ? "pointer" : "not-allowed",
+            color: canRate ? "var(--monad-deep)" : "var(--text-lo)",
+            background: "color-mix(in oklab, var(--monad) 12%, transparent)",
+            border: "1px solid color-mix(in oklab, var(--monad) 30%, transparent)",
+          }}
+        >
+          👍<span className="tnum">{upvotes}</span>
+        </button>
+        <TipButton agent={agent} variant="chip" />
+      </div>
     </div>
   );
 }
 
 export function Leaderboard() {
   const settledCount = useFeedStore(s => s.settledCount);
+  const tipsMicroUsdc = useFeedStore(s => s.tipsMicroUsdc);
+  const tipCount = useFeedStore(s => s.tipCount);
   const { stats, rate } = useAgentStats();
   const { address } = useAccount();
 
   const ranked = [...AGENTS]
-    .map(a => ({ agent: a, calls: stats[a.agentId]?.calls ?? 0, up: stats[a.agentId]?.upvotes ?? 0 }))
+    .map(a => ({
+      agent: a,
+      calls: stats[a.agentId]?.calls ?? 0,
+      up: stats[a.agentId]?.upvotes ?? 0,
+      tips: stats[a.agentId]?.tips ?? 0,
+    }))
     .sort((a, b) => b.up - a.up || b.calls - a.calls);
 
   const onRate = (id: number) => {
@@ -100,9 +118,20 @@ export function Leaderboard() {
   };
 
   return (
-    <section style={{ background: "var(--bg-1)", display: "flex", flexDirection: "column", minHeight: 0 }}>
+    <section
+      style={{
+        background: "var(--bg-1)",
+        display: "flex",
+        flexDirection: "column",
+        minHeight: 0,
+        borderRadius: 18,
+        border: "1px solid var(--line)",
+        boxShadow: "var(--shadow)",
+        overflow: "hidden",
+      }}
+    >
       <header style={paneHeaderStyle}>
-        reputation <span style={{ color: "var(--text-lo)", fontWeight: 400 }}>· ERC-8004</span>
+        Reputation <span style={{ color: "var(--text-lo)", fontWeight: 400 }}>· ERC-8004</span>
       </header>
       <div
         style={{
@@ -122,6 +151,7 @@ export function Leaderboard() {
             rank={i + 1}
             calls={r.calls}
             upvotes={r.up}
+            tipMicro={r.tips}
             onRate={onRate}
             canRate={Boolean(address)}
           />
@@ -130,18 +160,19 @@ export function Leaderboard() {
         <div style={{ marginTop: 8, padding: "12px", borderTop: "1px solid var(--line)" }}>
           <div
             style={{
-              fontSize: 10,
-              letterSpacing: "0.1em",
-              textTransform: "uppercase",
+              fontSize: 11,
+              fontWeight: 700,
+              letterSpacing: "0.01em",
               color: "var(--text-lo)",
               marginBottom: 8,
             }}
           >
-            session stats
+            Session stats
           </div>
-          <Stat label="settled (session)" value={String(settledCount)} />
-          <Stat label="agents live" value={String(AGENTS.length)} />
-          <Stat label="settlement" value="< 1s on Monad" />
+          <Stat label="Settled (session)" value={String(settledCount)} />
+          <Stat label="Tipped (session)" value={tipCount > 0 ? `${fmtUsd(tipsMicroUsdc)} · ${tipCount}` : "—"} />
+          <Stat label="Agents live" value={String(AGENTS.length)} />
+          <Stat label="Settlement" value="< 1s on Monad" />
         </div>
       </div>
     </section>

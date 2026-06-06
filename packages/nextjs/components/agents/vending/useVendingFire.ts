@@ -29,7 +29,8 @@ export function useVendingFire() {
   const selectedAgentId = useVendingStore(s => s.selectedAgentId);
   const prompt = useVendingStore(s => s.prompt);
   const startPaying = useVendingStore(s => s.startPaying);
-  const vend = useVendingStore(s => s.vend);
+  const insertCoin = useVendingStore(s => s.insertCoin);
+  const settleResult = useVendingStore(s => s.settleResult);
   const fail = useVendingStore(s => s.fail);
 
   const payAndVend = useCallback(async () => {
@@ -40,14 +41,20 @@ export function useVendingFire() {
     startPaying();
     try {
       const input = prompt.trim() || SAMPLE[agent.id] || "hello";
-      const res = await fire(agent, input);
-      vend({ output: res.output, taskHash: res.taskHash, settledMicroUsdc: res.settledMicroUsdc });
+      // "signed" fires the instant the buyer confirms in the wallet → drop the coin into the slot.
+      const res = await fire(agent, input, {
+        onPhase: p => {
+          if (p === "signed") insertCoin();
+        },
+      });
+      // Hand the output to the store; it flips to the tray once the coin animation has also finished.
+      settleResult({ output: res.output, taskHash: res.taskHash, settledMicroUsdc: res.settledMicroUsdc });
     } catch (e) {
       fail(e instanceof Error ? e.message : "payment failed");
     } finally {
       setBusy(false);
     }
-  }, [selectedAgentId, prompt, busy, ready, fire, startPaying, vend, fail]);
+  }, [selectedAgentId, prompt, busy, ready, fire, startPaying, insertCoin, settleResult, fail]);
 
   return { payAndVend, ready, busy };
 }

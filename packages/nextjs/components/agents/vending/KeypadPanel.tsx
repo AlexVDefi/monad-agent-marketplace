@@ -2,6 +2,7 @@
 
 import { useVendingFire } from "./useVendingFire";
 import { useVendingStore } from "./vendingStore";
+import { ChevronLeftIcon } from "@heroicons/react/16/solid";
 import { getAgent } from "~~/services/agents/registry";
 
 /**
@@ -19,7 +20,7 @@ export function KeypadPanel() {
   const agent = selectedAgentId ? getAgent(selectedAgentId) : undefined;
   if (!agent) return null;
 
-  const payLabel = !ready ? "connect wallet" : busy ? "authorizing…" : `insert ${agent.priceUsd} ▸ pay`;
+  const payLabel = !ready ? "Connect wallet" : busy ? "Authorizing…" : `Insert ${agent.priceUsd} · pay`;
 
   return (
     <div
@@ -28,8 +29,8 @@ export function KeypadPanel() {
         inset: 0,
         display: "flex",
         flexDirection: "column",
-        gap: 10,
-        padding: "12px 14px",
+        gap: 8,
+        padding: "10px 12px",
       }}
     >
       {/* selected agent header + back */}
@@ -39,17 +40,19 @@ export function KeypadPanel() {
           disabled={busy}
           title="Back to agent menu"
           style={{
+            display: "flex",
+            alignItems: "center",
             border: "1px solid var(--line)",
             background: "var(--bg-2)",
             color: "var(--text-mid)",
-            borderRadius: 6,
-            padding: "4px 8px",
+            borderRadius: 10,
+            padding: "5px 8px",
             fontSize: 12,
             cursor: busy ? "not-allowed" : "pointer",
             font: "inherit",
           }}
         >
-          ‹
+          <ChevronLeftIcon aria-hidden style={{ width: 14, height: 14 }} />
         </button>
         <span aria-hidden style={{ fontSize: 20 }}>
           {agent.glyph}
@@ -95,17 +98,16 @@ export function KeypadPanel() {
             border: "1px solid var(--line)",
             background: "var(--bg-2)",
             color: "var(--text-mid)",
-            borderRadius: 8,
-            padding: "0 14px",
-            fontSize: 11,
+            borderRadius: 12,
+            padding: "0 16px",
+            fontSize: 12,
             fontWeight: 700,
-            letterSpacing: "0.06em",
-            textTransform: "uppercase",
+            letterSpacing: "0.01em",
             cursor: busy || !prompt ? "not-allowed" : "pointer",
             font: "inherit",
           }}
         >
-          clear
+          Clear
         </button>
         <button
           onClick={payAndVend}
@@ -115,14 +117,13 @@ export function KeypadPanel() {
           style={{
             flex: 1,
             padding: "12px 14px",
-            borderRadius: 8,
+            borderRadius: 12,
             fontSize: 14,
             fontWeight: 800,
-            letterSpacing: "0.05em",
-            textTransform: "uppercase",
+            letterSpacing: "0.01em",
             cursor: !ready || busy ? "not-allowed" : "pointer",
             border: "1px solid transparent",
-            color: !ready ? "var(--text-lo)" : "var(--bg-0)",
+            color: !ready ? "var(--text-lo)" : "#fff",
             background: !ready ? "var(--bg-3)" : busy ? "var(--monad-deep)" : "var(--monad)",
             transition: "background 120ms var(--ease-out), transform 80ms var(--ease-snap)",
           }}

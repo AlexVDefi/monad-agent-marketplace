@@ -19,6 +19,8 @@ interface Snapshot {
   rows: FeedRow[];
   totalMicroUsdc: number;
   settledCount: number;
+  tipsMicroUsdc: number;
+  tipCount: number;
 }
 
 export function FeedPersistence() {
@@ -38,10 +40,18 @@ export function FeedPersistence() {
           rows: Array.isArray(snap.rows) ? snap.rows.slice(0, MAX_ROWS) : [],
           totalMicroUsdc: Number(snap.totalMicroUsdc ?? 0),
           settledCount: Number(snap.settledCount ?? 0),
+          tipsMicroUsdc: Number(snap.tipsMicroUsdc ?? 0),
+          tipCount: Number(snap.tipCount ?? 0),
         });
       } else {
         // fresh wallet → start clean rather than inheriting the previous wallet's feed
-        useFeedStore.setState({ rows: [], totalMicroUsdc: 0, settledCount: 0 });
+        useFeedStore.setState({
+          rows: [],
+          totalMicroUsdc: 0,
+          settledCount: 0,
+          tipsMicroUsdc: 0,
+          tipCount: 0,
+        });
       }
     } catch {
       /* ignore corrupt/unavailable storage */
@@ -62,6 +72,8 @@ export function FeedPersistence() {
               rows: state.rows,
               totalMicroUsdc: state.totalMicroUsdc,
               settledCount: state.settledCount,
+              tipsMicroUsdc: state.tipsMicroUsdc,
+              tipCount: state.tipCount,
             }),
           );
         } catch {

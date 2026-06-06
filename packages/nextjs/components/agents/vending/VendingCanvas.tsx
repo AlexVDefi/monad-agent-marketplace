@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense } from "react";
+import { CoinModel } from "./CoinModel";
 import { VendingMachineModel } from "./VendingMachineModel";
 import { Canvas } from "@react-three/fiber";
 
@@ -26,6 +27,9 @@ export function VendingCanvas() {
       <directionalLight position={[-6, 2, 4]} intensity={0.5} color={0x836ef9} />
       <Suspense fallback={null}>
         <VendingMachineModel />
+      </Suspense>
+      <Suspense fallback={null}>
+        <CoinModel />
       </Suspense>
     </Canvas>
   );

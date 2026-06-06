@@ -24,12 +24,23 @@ export interface CallLogRecord {
   taskHash: string;
 }
 
+// Once the sink hits a read-only filesystem (Vercel serverless writes to /var/task, which is RO), the
+// JSONL "tail it from a terminal agent" use case can't work anyway — so disable after the first failure
+// instead of logging an EROFS on every single call. Payments, the on-chain log, and the UI feed are
+// entirely unaffected by this.
+let fileSinkDisabled = false;
+
 export async function appendCallLog(rec: CallLogRecord): Promise<void> {
+  if (fileSinkDisabled) return;
   try {
     const marginUsd = Number((rec.settledUsd - rec.costUsd).toFixed(6));
     const line = JSON.stringify({ ts: new Date().toISOString(), ...rec, marginUsd }) + "\n";
     await appendFile(CALL_LOG_PATH, line, "utf8");
   } catch (e) {
-    console.error("[callLog] append failed:", e instanceof Error ? e.message : e);
+    fileSinkDisabled = true;
+    console.warn(
+      `[callLog] file sink disabled after write failure (${e instanceof Error ? e.message : e}). ` +
+        "Expected on read-only/serverless filesystems — does not affect payments or the stream.",
+    );
   }
 }

@@ -18,8 +18,8 @@ function AgentTile({ agent, onPick }: { agent: AgentMeta; onPick: (id: string) =
         rowGap: 1,
         width: "100%",
         textAlign: "left",
-        padding: "7px 9px",
-        borderRadius: 9,
+        padding: "8px 10px",
+        borderRadius: 12,
         border: "1px solid var(--line)",
         background: "color-mix(in oklab, var(--bg-2) 78%, transparent)",
         color: "var(--text-hi)",
@@ -51,14 +51,13 @@ function AgentTile({ agent, onPick }: { agent: AgentMeta; onPick: (id: string) =
         <span
           style={{
             flexShrink: 0,
-            fontSize: 8,
+            fontSize: 9,
             fontWeight: 700,
-            letterSpacing: "0.05em",
-            textTransform: "uppercase",
+            letterSpacing: "0.01em",
             color: isLlm ? "var(--monad-bright)" : "var(--settle)",
           }}
         >
-          {isLlm ? "LLM" : "instant"}
+          {isLlm ? "LLM" : "Instant"}
         </span>
         <span
           className="ui-font"
@@ -102,14 +101,14 @@ export function AgentGridPanel() {
           display: "flex",
           alignItems: "baseline",
           gap: 6,
-          fontSize: 10,
-          letterSpacing: "0.14em",
-          textTransform: "uppercase",
+          fontSize: 11,
+          fontWeight: 700,
+          letterSpacing: "0.01em",
           color: "var(--settle)",
           whiteSpace: "nowrap",
         }}
       >
-        <span>▸ select an agent</span>
+        <span>Pick an agent</span>
       </div>
 
       <div style={{ flex: 1, minHeight: 0, overflowY: "auto", display: "flex", flexDirection: "column", gap: 8 }}>

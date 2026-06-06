@@ -24,6 +24,8 @@ export interface CallResult {
   /** Real cost incurred to produce the output (LLM tokens; 0 for deterministic). */
   costMicroUsdc: number;
   taskHash: `0x${string}`;
+  /** The CallLogged heartbeat tx hash, for the explorer link. null if the on-chain write timed out. */
+  txHash?: `0x${string}` | null;
 }
 
 export interface CallOptions {

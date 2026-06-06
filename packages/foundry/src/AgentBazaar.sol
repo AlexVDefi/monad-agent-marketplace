@@ -22,6 +22,15 @@ contract AgentBazaar {
     /// @notice 👍 upvotes per agentId (on-chain reputation; maps to the ERC-8004 reputation model).
     mapping(uint256 => uint256) public upvotes;
 
+    /// @notice Cumulative viewer tips per agentId, in USDC micro-units (1e-6 USDC).
+    mapping(uint256 => uint256) public tipsMicroUsdc;
+
+    /// @notice Number of viewer tips recorded per agentId.
+    mapping(uint256 => uint256) public tipCount;
+
+    /// @notice Total tips across all agents, in USDC micro-units.
+    uint256 public totalTipsMicroUsdc;
+
     /// @notice Emitted once per paid agent call. The UI streams this over websockets.
     /// @param agentId        the agent that was hired
     /// @param caller         msg.sender — whoever logged the call (the server signer)
@@ -38,6 +47,21 @@ contract AgentBazaar {
 
     /// @notice Emitted when a buyer rates an agent 👍. Streamed live to bump the leaderboard.
     event Rated(uint256 indexed agentId, address indexed rater, uint256 newUpvotes, uint64 timestamp);
+
+    /// @notice Emitted when a viewer tip is recorded. Like CallLogged, the money already moved via
+    ///         USDC off this contract — this is the context-rich reputation log the UI streams live.
+    /// @param agentId         the tipped agent
+    /// @param tipper          the wallet that sent the tip (recorded for provenance/leaderboards)
+    /// @param amountMicroUsdc tip amount, in USDC micro-units
+    /// @param ref             the USDC transfer tx hash this tip settled in (ties the log to the move)
+    /// @param timestamp       block timestamp
+    event Tipped(
+        uint256 indexed agentId,
+        address indexed tipper,
+        uint256 amountMicroUsdc,
+        bytes32 ref,
+        uint64 timestamp
+    );
 
     /// @notice Record a paid call. Cheap: a few SSTOREs + one event. No funds touched.
     /// @dev Callers should set a realistic gas limit — Monad bills `gas_limit` upfront.
@@ -57,6 +81,24 @@ contract AgentBazaar {
             upvotes[agentId] += 1;
         }
         emit Rated(agentId, msg.sender, upvotes[agentId], uint64(block.timestamp));
+    }
+
+    /// @notice Record a viewer tip after its USDC transfer settled off-chain. Cheap: a couple SSTOREs
+    ///         + one event. NOT escrow — funds already moved via USDC; this only logs reputation so a
+    ///         fresh client/another device can seed the leaderboard from chain and stream tips live.
+    /// @dev    Permissionless like logCall; in practice the app's server signer calls it AFTER
+    ///         verifying the `ref` transfer landed (to the tip wallet, for `amountMicroUsdc`).
+    /// @param agentId         the tipped agent
+    /// @param tipper          the wallet that sent the tip
+    /// @param amountMicroUsdc tip amount, in USDC micro-units
+    /// @param ref             the USDC transfer tx hash this tip settled in
+    function logTip(uint256 agentId, address tipper, uint256 amountMicroUsdc, bytes32 ref) external {
+        unchecked {
+            tipsMicroUsdc[agentId] += amountMicroUsdc;
+            tipCount[agentId] += 1;
+            totalTipsMicroUsdc += amountMicroUsdc;
+        }
+        emit Tipped(agentId, tipper, amountMicroUsdc, ref, uint64(block.timestamp));
     }
 
     /// @notice Convenience read for the leaderboard.

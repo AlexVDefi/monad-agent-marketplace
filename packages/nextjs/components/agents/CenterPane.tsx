@@ -19,10 +19,10 @@ export function CenterPane() {
     <section style={{ background: "var(--bg-1)", display: "flex", flexDirection: "column", minHeight: 0 }}>
       <header style={{ ...paneHeaderStyle, gap: 16 }}>
         <TabButton active={tab === "stream"} onClick={() => setTab("stream")}>
-          live stream
+          Live stream
         </TabButton>
         <TabButton active={tab === "history"} onClick={() => setTab("history")}>
-          history
+          History
         </TabButton>
       </header>
 
@@ -44,10 +44,9 @@ function TabButton({ active, onClick, children }: { active: boolean; onClick: ()
         border: "none",
         padding: "0 0 2px",
         cursor: "pointer",
-        fontSize: 12,
+        fontSize: 13,
         fontWeight: 700,
-        letterSpacing: "0.12em",
-        textTransform: "uppercase",
+        letterSpacing: "0.01em",
         color: active ? "var(--text-hi)" : "var(--text-lo)",
         borderBottom: `2px solid ${active ? "var(--monad)" : "transparent"}`,
       }}

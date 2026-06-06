@@ -8,9 +8,20 @@ import { AGENTS } from "~~/services/agents/registry";
 
 export function Storefront() {
   return (
-    <section style={{ background: "var(--bg-1)", display: "flex", flexDirection: "column", minHeight: 0 }}>
+    <section
+      style={{
+        background: "var(--bg-1)",
+        display: "flex",
+        flexDirection: "column",
+        minHeight: 0,
+        borderRadius: 18,
+        border: "1px solid var(--line)",
+        boxShadow: "var(--shadow)",
+        overflow: "hidden",
+      }}
+    >
       <header style={paneHeaderStyle}>
-        storefront <span style={{ color: "var(--text-lo)", fontWeight: 400 }}>· pay-per-call</span>
+        Storefront <span style={{ color: "var(--text-lo)", fontWeight: 400 }}>· pay-per-call</span>
       </header>
       <div
         style={{

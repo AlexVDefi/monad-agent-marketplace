@@ -9,6 +9,8 @@ import { AGENTS } from "~~/services/agents/registry";
 export interface AgentStat {
   upvotes: number;
   calls: number;
+  /** Cumulative tips for this agent, in USDC micro-units (authoritative, seeded from chain). */
+  tips: number;
 }
 
 const ZERO = "0x0000000000000000000000000000000000000000";
@@ -32,7 +34,7 @@ export function useAgentStats() {
       try {
         const entries = await Promise.all(
           AGENTS.map(async a => {
-            const [up, calls] = await Promise.all([
+            const [up, calls, tips] = await Promise.all([
               publicClient.readContract({
                 address: AGENT_BAZAAR_ADDRESS,
                 abi: agentBazaarAbi,
@@ -45,8 +47,14 @@ export function useAgentStats() {
                 functionName: "callCount",
                 args: [BigInt(a.agentId)],
               }),
+              publicClient.readContract({
+                address: AGENT_BAZAAR_ADDRESS,
+                abi: agentBazaarAbi,
+                functionName: "tipsMicroUsdc",
+                args: [BigInt(a.agentId)],
+              }),
             ]);
-            return [a.agentId, { upvotes: Number(up), calls: Number(calls) }] as const;
+            return [a.agentId, { upvotes: Number(up), calls: Number(calls), tips: Number(tips) }] as const;
           }),
         );
         if (cancelled) return;
@@ -56,6 +64,7 @@ export function useAgentStats() {
             next[id] = {
               upvotes: Math.max(prev[id]?.upvotes ?? 0, s.upvotes),
               calls: Math.max(prev[id]?.calls ?? 0, s.calls),
+              tips: Math.max(prev[id]?.tips ?? 0, s.tips),
             };
           }
           return next;
@@ -77,7 +86,10 @@ export function useAgentStats() {
       logs.forEach(log => {
         const id = Number((log.args as { agentId?: bigint }).agentId ?? 0);
         if (!id) return;
-        setStats(prev => ({ ...prev, [id]: { upvotes: prev[id]?.upvotes ?? 0, calls: (prev[id]?.calls ?? 0) + 1 } }));
+        setStats(prev => ({
+          ...prev,
+          [id]: { upvotes: prev[id]?.upvotes ?? 0, calls: (prev[id]?.calls ?? 0) + 1, tips: prev[id]?.tips ?? 0 },
+        }));
       }),
   });
 
@@ -93,7 +105,32 @@ export function useAgentStats() {
         const n = Number(args.newUpvotes ?? 0);
         setStats(prev => ({
           ...prev,
-          [id]: { calls: prev[id]?.calls ?? 0, upvotes: Math.max(prev[id]?.upvotes ?? 0, n) },
+          [id]: {
+            calls: prev[id]?.calls ?? 0,
+            upvotes: Math.max(prev[id]?.upvotes ?? 0, n),
+            tips: prev[id]?.tips ?? 0,
+          },
+        }));
+      }),
+  });
+
+  // Live: each tip adds to that agent's cumulative tips (delta, like CallLogged's +1).
+  useScaffoldWatchContractEvent({
+    contractName: "AgentBazaar",
+    eventName: "Tipped",
+    onLogs: logs =>
+      logs.forEach(log => {
+        const args = log.args as { agentId?: bigint; amountMicroUsdc?: bigint };
+        const id = Number(args.agentId ?? 0);
+        if (!id) return;
+        const amount = Number(args.amountMicroUsdc ?? 0n);
+        setStats(prev => ({
+          ...prev,
+          [id]: {
+            upvotes: prev[id]?.upvotes ?? 0,
+            calls: prev[id]?.calls ?? 0,
+            tips: (prev[id]?.tips ?? 0) + amount,
+          },
         }));
       }),
   });
@@ -102,14 +139,22 @@ export function useAgentStats() {
     async (agentId: number) => {
       setStats(prev => ({
         ...prev,
-        [agentId]: { calls: prev[agentId]?.calls ?? 0, upvotes: (prev[agentId]?.upvotes ?? 0) + 1 },
+        [agentId]: {
+          calls: prev[agentId]?.calls ?? 0,
+          upvotes: (prev[agentId]?.upvotes ?? 0) + 1,
+          tips: prev[agentId]?.tips ?? 0,
+        },
       }));
       try {
         await writeContractAsync({ functionName: "rate", args: [BigInt(agentId)] });
       } catch (e) {
         setStats(prev => ({
           ...prev,
-          [agentId]: { calls: prev[agentId]?.calls ?? 0, upvotes: Math.max(0, (prev[agentId]?.upvotes ?? 1) - 1) },
+          [agentId]: {
+            calls: prev[agentId]?.calls ?? 0,
+            upvotes: Math.max(0, (prev[agentId]?.upvotes ?? 1) - 1),
+            tips: prev[agentId]?.tips ?? 0,
+          },
         }));
         throw e;
       }

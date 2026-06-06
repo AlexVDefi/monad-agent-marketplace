@@ -1,4 +1,4 @@
-import { Inter_Tight, Space_Mono } from "next/font/google";
+import { Quicksand, Space_Mono } from "next/font/google";
 import "@rainbow-me/rainbowkit/styles.css";
 import { ScaffoldEthAppWithProviders } from "~~/components/ScaffoldEthAppWithProviders";
 import { ThemeProvider } from "~~/components/ThemeProvider";
@@ -12,8 +12,10 @@ const spaceMono = Space_Mono({
   display: "swap",
 });
 
-const interTight = Inter_Tight({
+// Friendly rounded UI font (kept under the same CSS var so globals.css needs no change).
+const quicksand = Quicksand({
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
   variable: "--font-inter-tight",
   display: "swap",
 });
@@ -26,9 +28,9 @@ export const metadata = getMetadata({
 
 const ScaffoldEthApp = ({ children }: { children: React.ReactNode }) => {
   return (
-    <html suppressHydrationWarning lang="en" className={`${spaceMono.variable} ${interTight.variable}`}>
+    <html suppressHydrationWarning lang="en" className={`${spaceMono.variable} ${quicksand.variable}`}>
       <body>
-        <ThemeProvider enableSystem={false} defaultTheme="dark">
+        <ThemeProvider enableSystem={false} defaultTheme="light">
           <ScaffoldEthAppWithProviders>{children}</ScaffoldEthAppWithProviders>
         </ThemeProvider>
       </body>

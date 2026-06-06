@@ -39,20 +39,19 @@ export function DemoStorm() {
       className="anim-storm-host"
       style={{
         width: "100%",
-        padding: "10px 12px",
-        borderRadius: 6,
-        fontSize: 12,
+        padding: "11px 14px",
+        borderRadius: 12,
+        fontSize: 13,
         fontWeight: 700,
-        letterSpacing: "0.06em",
-        textTransform: "uppercase",
+        letterSpacing: "0.01em",
         cursor: !ready || running ? "not-allowed" : "pointer",
-        color: "var(--monad-bright)",
+        color: "var(--monad-deep)",
         background: "color-mix(in oklab, var(--monad) 12%, transparent)",
-        border: "1px solid var(--line-strong)",
+        border: "1px solid color-mix(in oklab, var(--monad) 30%, transparent)",
       }}
       title="Fire a burst of real paid calls to flood the stream"
     >
-      ⚡ {running ? "storming…" : `demo storm (${STORM_N})`}
+      ⚡ {running ? "Storming…" : `Demo storm (${STORM_N})`}
     </button>
   );
 }

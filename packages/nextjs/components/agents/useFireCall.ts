@@ -2,7 +2,7 @@
 
 import { useCallback } from "react";
 import { useFeedStore } from "./feedStore";
-import { useAgentCall } from "~~/hooks/useAgentCall";
+import { type Phase, useAgentCall } from "~~/hooks/useAgentCall";
 import type { AgentMeta } from "~~/services/agents/registry";
 
 let seq = 0;
@@ -27,7 +27,7 @@ export function useFireCall() {
   const markSettled = useFeedStore(s => s.markSettled);
 
   const fire = useCallback(
-    async (agent: AgentMeta, input: string) => {
+    async (agent: AgentMeta, input: string, opts?: { onPhase?: (phase: Phase) => void }) => {
       const id = newId();
       const taskHash = randomTaskHash();
       addRow({
@@ -44,16 +44,22 @@ export function useFireCall() {
       });
       try {
         const res = await call(agent.id, input, {
-          onPhase: p => patchRow(id, { phase: p }),
+          onPhase: p => {
+            patchRow(id, { phase: p });
+            opts?.onPhase?.(p);
+          },
           taskHash,
           scheme: agent.scheme,
           maxMicroUsdc: agent.maxMicroUsdc,
         });
         // settledMicroUsdc is the ACTUAL charged amount (metered for upto). markSettled totals it.
+        // res.txHash (the CallLogged heartbeat) lets the row link out immediately; if it's null the
+        // CallLogged ws event still attaches it later (confirmFromChain merges by taskHash).
         patchRow(id, {
           output: res.output,
           priceMicroUsdc: res.settledMicroUsdc,
           costMicroUsdc: res.costMicroUsdc,
+          ...(res.txHash ? { txHash: res.txHash } : {}),
         });
         markSettled(id);
         return res;

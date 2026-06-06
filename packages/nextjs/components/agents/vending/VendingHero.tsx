@@ -32,23 +32,39 @@ export function VendingHero() {
   if (!canRender3D) return <Storefront />;
 
   return (
-    <section style={{ background: "var(--bg-1)", display: "flex", flexDirection: "column", minHeight: 0 }}>
+    <section
+      style={{
+        background: "var(--bg-1)",
+        display: "flex",
+        flexDirection: "column",
+        minHeight: 0,
+        borderRadius: 18,
+        border: "1px solid var(--line)",
+        boxShadow: "var(--shadow)",
+        overflow: "hidden",
+      }}
+    >
       <header style={paneHeaderStyle}>
-        agent vending machine <span style={{ color: "var(--text-lo)", fontWeight: 400 }}>· pick · pay · dispense</span>
+        Agent vending machine <span style={{ color: "var(--text-lo)", fontWeight: 400 }}>· pick · pay · dispense</span>
       </header>
       <div style={{ flex: 1, minHeight: 0, position: "relative", overflow: "hidden" }}>
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          {/* The single box the Canvas and overlay share — keeps them locked in alignment. */}
-          <div style={{ position: "relative", height: "100%", aspectRatio: "4 / 5", maxWidth: "100%" }}>
-            <VendingCanvas />
+        <div style={{ position: "absolute", inset: 0 }}>
+          {/* Canvas fills the FULL panel width — a wider ortho frustum so zoomed-in framings don't crop
+              the left/right. The overlay lives in a height-driven 4:5 box centered horizontally; since
+              the machine is sized by canvas HEIGHT and centered, the overlay stays locked to it at any
+              panel width (no rect recalibration needed). */}
+          <VendingCanvas />
+          <div
+            style={{
+              position: "absolute",
+              top: 0,
+              bottom: 0,
+              left: "50%",
+              transform: "translateX(-50%)",
+              aspectRatio: "4 / 5",
+              pointerEvents: "none",
+            }}
+          >
             <VendingOverlay />
           </div>
         </div>
