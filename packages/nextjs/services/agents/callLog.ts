@@ -16,13 +16,18 @@ export interface CallLogRecord {
   agentName: string;
   prompt: string;
   output: string;
-  priceMicroUsdc: number;
+  scheme: "exact" | "upto";
+  /** Actual USD cost incurred (LLM tokens; 0 for deterministic). */
+  costUsd: number;
+  /** USD actually charged the buyer (metered for upto, fixed for exact). */
+  settledUsd: number;
   taskHash: string;
 }
 
 export async function appendCallLog(rec: CallLogRecord): Promise<void> {
   try {
-    const line = JSON.stringify({ ts: new Date().toISOString(), ...rec }) + "\n";
+    const marginUsd = Number((rec.settledUsd - rec.costUsd).toFixed(6));
+    const line = JSON.stringify({ ts: new Date().toISOString(), ...rec, marginUsd }) + "\n";
     await appendFile(CALL_LOG_PATH, line, "utf8");
   } catch (e) {
     console.error("[callLog] append failed:", e instanceof Error ? e.message : e);

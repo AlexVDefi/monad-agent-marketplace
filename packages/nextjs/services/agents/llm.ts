@@ -1,3 +1,4 @@
+import type { LlmUsage } from "./pricing";
 import Anthropic from "@anthropic-ai/sdk";
 
 /**
@@ -7,33 +8,44 @@ import Anthropic from "@anthropic-ai/sdk";
  * NOTE: this is the app-runtime key, NOT covered by a Claude Max/Code subscription. Set a HARD
  * monthly spend cap in the Anthropic Console — testnet USDC is free, so the x402 paywall does not
  * protect your real API budget if strangers hammer the endpoint.
+ *
+ * Returns the text AND the token usage, so callers can compute the real per-call cost (used for
+ * cost logging and for `upto` metered pricing).
  */
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 const MODEL = "claude-haiku-4-5";
 
-// HARD cap. Bounds cost — and therefore the worst-case x402 price per call.
-// Haiku 4.5 output is ~$5/1M tokens => 400 tokens ~= $0.002 ceiling per call.
+// HARD cap on output tokens — bounds the worst-case cost (and therefore the metered ceiling).
 const MAX_TOKENS = 400;
 
-/**
- * Single server-side LLM call. Returns the assistant's text.
- * @param prompt The user turn (the request being paid for).
- * @param system The stable instruction prefix. Marked for prompt caching (5-min TTL).
- */
-export async function runLLM(prompt: string, system: string): Promise<string> {
+export interface LlmResult {
+  text: string;
+  usage: LlmUsage;
+}
+
+export async function runLLM(prompt: string, system: string): Promise<LlmResult> {
   const response = await client.messages.create({
     model: MODEL,
     max_tokens: MAX_TOKENS,
-    // system as an array of blocks; cache_control on the last block sets the cache breakpoint.
-    // (No-ops on Haiku until the prefix exceeds 4096 tokens — harmless, free when it grows.)
     system: [{ type: "text", text: system, cache_control: { type: "ephemeral" } }],
     messages: [{ role: "user", content: prompt }],
   });
 
-  return response.content
+  const text = response.content
     .filter((b): b is Anthropic.TextBlock => b.type === "text")
     .map(b => b.text)
     .join("")
     .trim();
+
+  const u = response.usage;
+  return {
+    text,
+    usage: {
+      input_tokens: u.input_tokens ?? 0,
+      output_tokens: u.output_tokens ?? 0,
+      cache_read_input_tokens: u.cache_read_input_tokens ?? 0,
+      cache_creation_input_tokens: u.cache_creation_input_tokens ?? 0,
+    },
+  };
 }

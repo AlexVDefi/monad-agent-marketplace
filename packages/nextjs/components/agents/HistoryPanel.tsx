@@ -97,6 +97,15 @@ export function HistoryPanel() {
               </div>
             ) : null}
 
+            {r.costMicroUsdc != null && (
+              <div className="tnum" style={{ fontSize: 10, color: "var(--text-lo)" }}>
+                cost ${(r.costMicroUsdc / 1e6).toFixed(4)} · paid ${(r.priceMicroUsdc / 1e6).toFixed(4)} · margin{" "}
+                <span style={{ color: r.priceMicroUsdc - r.costMicroUsdc >= 0 ? "var(--settle)" : "var(--danger)" }}>
+                  ${((r.priceMicroUsdc - r.costMicroUsdc) / 1e6).toFixed(4)}
+                </span>
+              </div>
+            )}
+
             <div
               className="tnum"
               style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--text-lo)" }}

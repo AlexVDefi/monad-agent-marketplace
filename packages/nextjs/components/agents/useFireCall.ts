@@ -16,10 +16,9 @@ function randomTaskHash(): `0x${string}` {
 }
 
 /**
- * Bridges a storefront CALL → a feed row. The taskHash is generated up front and set on the row
- * immediately, then sent to the server (used for logCall + echoed back), so the on-chain CallLogged
- * event merges into THIS row instead of creating a duplicate. Marks settled on the 200 (payment
- * settled on Monad); the ws event attaches the explorer tx.
+ * Bridges a storefront CALL → a feed row. Generates the taskHash up front (so the on-chain event
+ * merges into this row, no duplicate), runs the x402 lifecycle with the agent's scheme (exact or
+ * upto/metered), then patches the row with the ACTUAL settled amount + real cost on the 200.
  */
 export function useFireCall() {
   const { call, ready, busy } = useAgentCall();
@@ -36,7 +35,7 @@ export function useFireCall() {
         agentId: agent.agentId,
         agentName: agent.name,
         glyph: agent.glyph,
-        priceMicroUsdc: agent.priceMicroUsdc,
+        priceMicroUsdc: agent.priceMicroUsdc, // display estimate until the metered amount returns
         phase: "request",
         bornAt: Date.now(),
         source: "client",
@@ -44,9 +43,19 @@ export function useFireCall() {
         taskHash,
       });
       try {
-        const res = await call(agent.id, input, { onPhase: p => patchRow(id, { phase: p }), taskHash });
-        patchRow(id, { output: res.output });
-        markSettled(id); // 200 = USDC settled on Monad; the ws CallLogged event attaches the explorer tx
+        const res = await call(agent.id, input, {
+          onPhase: p => patchRow(id, { phase: p }),
+          taskHash,
+          scheme: agent.scheme,
+          maxMicroUsdc: agent.maxMicroUsdc,
+        });
+        // settledMicroUsdc is the ACTUAL charged amount (metered for upto). markSettled totals it.
+        patchRow(id, {
+          output: res.output,
+          priceMicroUsdc: res.settledMicroUsdc,
+          costMicroUsdc: res.costMicroUsdc,
+        });
+        markSettled(id);
         return res;
       } catch (e) {
         patchRow(id, { phase: "error", error: e instanceof Error ? e.message : "failed" });

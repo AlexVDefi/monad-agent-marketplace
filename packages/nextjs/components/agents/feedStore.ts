@@ -21,6 +21,8 @@ export interface FeedRow {
   txHash?: `0x${string}`;
   prompt?: string;
   output?: string;
+  /** Actual API cost in micro-USDC (metered agents); compare to priceMicroUsdc for margin. */
+  costMicroUsdc?: number;
   error?: string;
   bornAt: number;
   source: "client" | "chain";
