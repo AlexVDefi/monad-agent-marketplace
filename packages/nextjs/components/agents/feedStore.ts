@@ -19,6 +19,7 @@ export interface FeedRow {
   phase: Phase;
   taskHash?: `0x${string}`;
   txHash?: `0x${string}`;
+  prompt?: string;
   output?: string;
   error?: string;
   bornAt: number;

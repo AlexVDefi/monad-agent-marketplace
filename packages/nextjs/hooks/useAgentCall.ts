@@ -19,17 +19,18 @@ export interface CallResult {
   taskHash: `0x${string}`;
 }
 
-export interface CallCallbacks {
+export interface CallOptions {
   /** Phase transitions, authentic to the x402 flow (402 fires right before the wallet signature). */
   onPhase?: (phase: Phase) => void;
-  /** The taskHash to watch for on-chain — the feed flips the row to "settled" when CallLogged matches. */
-  onSettleHint?: (taskHash: `0x${string}`) => void;
+  /** Client-generated taskHash sent to the server, so the row owns it BEFORE the call settles — the
+   *  on-chain CallLogged event then always merges into the right row (no duplicate). */
+  taskHash?: `0x${string}`;
 }
 
 /**
- * The auto-paying client + orchestrator. Builds an x402 signer from the wagmi wallet client and runs
- * the request → 402 → signed → settling lifecycle. The final "settled" transition is owned by the
- * PaymentStream's websocket subscription (matching taskHash), not by this hook.
+ * The auto-paying client. Builds an x402 signer from the wagmi wallet client and runs the
+ * request → 402 → signed → settling lifecycle. Passing a client-generated taskHash lets the feed
+ * dedupe the optimistic row against the on-chain confirmation deterministically.
  */
 export function useAgentCall() {
   const { data: walletClient } = useWalletClient();
@@ -37,23 +38,21 @@ export function useAgentCall() {
   const [busy, setBusy] = useState(false);
 
   const call = useCallback(
-    async (id: string, input: string, cb?: CallCallbacks): Promise<CallResult> => {
+    async (id: string, input: string, opts?: CallOptions): Promise<CallResult> => {
       if (!walletClient || !address) {
-        cb?.onPhase?.("error");
+        opts?.onPhase?.("error");
         throw new Error("Connect a wallet on Monad testnet first.");
       }
 
       setBusy(true);
-      cb?.onPhase?.("request");
+      opts?.onPhase?.("request");
 
-      // Plain structural signer — bridges x402's EIP-712 request to the wagmi wallet client. This is
-      // why x402's nested viem (2.52.2) and the app's viem (2.21.32) don't need to match.
       const signer = {
         address: address as `0x${string}`,
         signTypedData: async (message: any) => {
-          cb?.onPhase?.("402"); // 402 received → x402 is asking us to authorize the USDC payment
+          opts?.onPhase?.("402"); // 402 received → x402 is asking us to authorize the USDC payment
           const sig = await walletClient.signTypedData({ ...message, account: address });
-          cb?.onPhase?.("signed"); // user signed the transferWithAuthorization
+          opts?.onPhase?.("signed"); // user signed the transferWithAuthorization
           return sig;
         },
       };
@@ -65,18 +64,17 @@ export function useAgentCall() {
         const res = await paidFetch(`/api/agents/${id}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ input }),
+          body: JSON.stringify({ input, taskHash: opts?.taskHash }),
         });
         if (!res.ok) {
           const detail = await res.text().catch(() => "");
           throw new Error(`Agent call failed (${res.status}): ${detail.slice(0, 200)}`);
         }
         const data = (await res.json()) as CallResult;
-        cb?.onPhase?.("settling"); // paid + work done; awaiting the on-chain CallLogged confirm
-        cb?.onSettleHint?.(data.taskHash);
+        opts?.onPhase?.("settling"); // paid + work done; the on-chain CallLogged confirm attaches the tx
         return data;
       } catch (e) {
-        cb?.onPhase?.("error");
+        opts?.onPhase?.("error");
         throw e;
       } finally {
         setBusy(false);

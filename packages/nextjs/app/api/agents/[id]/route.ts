@@ -7,10 +7,15 @@ import { X402_NETWORK, x402Server } from "~~/services/agents/x402";
 
 export const dynamic = "force-dynamic";
 
+const BYTES32 = /^0x[0-9a-fA-F]{64}$/;
+
 /**
  * ONE dynamic route gates every agent. Order is sacred: x402 VERIFY → run work → (settle).
  * withX402 verifies the payment before it ever calls our handler, so we never compute (or spend
  * Anthropic budget) before the buyer has paid. POST so the task input rides in the body.
+ *
+ * The client sends a taskHash so its optimistic row and the on-chain CallLogged event share one id
+ * (no duplicate rows). The swarm orchestrator omits it → we compute one server-side.
  */
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const agent = getAgent(params.id);
@@ -18,12 +23,14 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     return NextResponse.json({ error: `unknown agent '${params.id}'` }, { status: 404 });
   }
 
-  // Read input from a CLONE so the original req (which withX402 inspects for the X-PAYMENT header)
-  // stays untouched. withX402 reads headers, not the body, so this is safe.
   let input = "";
+  let clientTaskHash: `0x${string}` | null = null;
   try {
     const body = await req.clone().json();
     input = String(body?.input ?? "");
+    if (typeof body?.taskHash === "string" && BYTES32.test(body.taskHash)) {
+      clientTaskHash = body.taskHash as `0x${string}`;
+    }
   } catch {
     input = "";
   }
@@ -37,15 +44,15 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     },
   };
 
-  // This only runs AFTER x402 verification succeeds.
+  // Runs ONLY after x402 verification succeeds.
   const handler = async (): Promise<NextResponse> => {
     const output = await runAgent(agent, input);
 
     const nonce = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const taskHash = makeTaskHash(agent.agentId, input, nonce);
+    const taskHash = clientTaskHash ?? makeTaskHash(agent.agentId, input, nonce);
 
     // Heartbeat: fire-and-forget so we don't block the 200. The ws CallLogged event drives the
-    // on-chain "settled" confirmation in the UI.
+    // on-chain confirmation (explorer link) in the UI.
     void logCallOnChain(agent.agentId, agent.priceMicroUsdc, taskHash).catch((err: unknown) =>
       console.error("[logCall] failed:", err instanceof Error ? err.message : err),
     );

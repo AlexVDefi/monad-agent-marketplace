@@ -1,12 +1,11 @@
 "use client";
 
+import { CenterPane } from "./CenterPane";
 import { FeedPersistence } from "./FeedPersistence";
 import { Leaderboard } from "./Leaderboard";
-import { PaymentStream } from "./PaymentStream";
 import { StatusBar } from "./StatusBar";
 import { Storefront } from "./Storefront";
 import { TopBar } from "./TopBar";
-import { paneHeaderStyle } from "./paneStyles";
 
 /**
  * The 3-column terminal shell. Holds NO fast-ticking state — the payment tick lives inside
@@ -31,15 +30,7 @@ export function BazaarTerminal() {
         >
           <Storefront />
 
-          <section style={{ background: "var(--bg-1)", display: "flex", flexDirection: "column", minHeight: 0 }}>
-            <header style={paneHeaderStyle}>
-              live payment stream
-              <span style={{ color: "var(--text-lo)", fontWeight: 400 }}>· the hero</span>
-            </header>
-            <div style={{ flex: 1, minHeight: 0 }}>
-              <PaymentStream />
-            </div>
-          </section>
+          <CenterPane />
 
           <Leaderboard />
         </div>

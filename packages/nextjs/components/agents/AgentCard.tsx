@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useFireCall } from "./useFireCall";
 import { useScaffoldReadContract } from "~~/hooks/scaffold-eth";
 import type { AgentMeta } from "~~/services/agents/registry";
@@ -16,8 +16,7 @@ export function AgentCard({ agent }: { agent: AgentMeta }) {
   const { fire, ready } = useFireCall();
   const [busy, setBusy] = useState(false);
   const [input, setInput] = useState("");
-  const [result, setResult] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const inFlight = useRef(false); // synchronous guard so a fast double-click can't fire two payments
 
   const { data: callCount } = useScaffoldReadContract({
     contractName: "AgentBazaar",
@@ -27,16 +26,16 @@ export function AgentCard({ agent }: { agent: AgentMeta }) {
   });
 
   const onCall = async () => {
-    if (busy || !ready) return;
+    if (inFlight.current || !ready) return;
+    inFlight.current = true;
     setBusy(true);
-    setError(null);
     try {
-      const res = await fire(agent, input.trim() || SAMPLE[agent.id] || "hello");
-      setResult(res.output);
-    } catch (e) {
-      // also surfaced as an error row in the stream; shown here so the caller sees why it failed
-      setError(e instanceof Error ? e.message : "call failed");
+      await fire(agent, input.trim() || SAMPLE[agent.id] || "hello");
+      // result + prompt appear in the live stream (click the row) and the History tab
+    } catch {
+      // surfaced as an error row in the stream
     } finally {
+      inFlight.current = false;
       setBusy(false);
     }
   };
@@ -141,45 +140,6 @@ export function AgentCard({ agent }: { agent: AgentMeta }) {
       >
         {!ready ? "connect wallet" : busy ? "calling…" : "call ▸"}
       </button>
-
-      {(result || error) && (
-        <div
-          className="anim-row-enter"
-          style={{
-            background: "var(--bg-0)",
-            border: `1px solid ${error ? "var(--danger)" : "var(--settle)"}`,
-            borderRadius: 6,
-            padding: "8px 10px",
-            display: "flex",
-            flexDirection: "column",
-            gap: 4,
-          }}
-        >
-          <span
-            style={{
-              fontSize: 9,
-              fontWeight: 700,
-              letterSpacing: "0.06em",
-              textTransform: "uppercase",
-              color: error ? "var(--danger)" : "var(--settle)",
-            }}
-          >
-            {error ? "error" : `${agent.glyph} result`}
-          </span>
-          <p
-            className="ui-font"
-            style={{
-              margin: 0,
-              fontSize: 12,
-              lineHeight: 1.5,
-              color: error ? "var(--text-mid)" : "var(--text-hi)",
-              wordBreak: "break-word",
-            }}
-          >
-            {error || result}
-          </p>
-        </div>
-      )}
     </div>
   );
 }
