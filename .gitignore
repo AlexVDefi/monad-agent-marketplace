@@ -1,1 +1,36 @@
+# dependencies
+node_modules
+
+# foundry build artifacts
+packages/foundry/out
+packages/foundry/cache
+packages/foundry/broadcast
+
+# secrets — never commit env files (Anthropic key, deployer private key)
+.env
 .env.local
+.env*.local
+**/.env
+**/.env.local
+**/.env*.local
+
+# yarn
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+
+# eslint
+.eslintcache
+
+# misc
+.DS_Store
+
+# IDE
+.vscode
+.idea
+
+# cli
+dist
