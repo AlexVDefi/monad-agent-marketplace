@@ -71,6 +71,10 @@ Connect a wallet on Monad testnet (MON for gas + testnet USDC from https://fauce
 
 > Honest scope: the chain verifies **payment, the call record, and reputation**. Work-quality validation and the full ERC-8004 registry integration are the roadmap.
 
+## Persistence
+
+State survives a refresh: **reputation + call counts are seeded from chain on load** (authoritative, cross-device), then kept live via events. Each wallet's **call history + LLM outputs** persist in `localStorage` keyed by address — outputs never go on-chain (only their `taskHash` does), so the browser is their home. *Production cross-device history* would swap localStorage for an Envio indexer over `CallLogged`/`Rated` plus a small store for outputs. (Note: MonadDB is the node's internal state engine, not an app database.)
+
 ---
 
 *Submission: fork of [`monad-blitz-lisbon`](https://github.com/monad-developers/monad-blitz-lisbon). Submit the repo URL at the [Blitz Portal](https://blitz.devnads.com).*

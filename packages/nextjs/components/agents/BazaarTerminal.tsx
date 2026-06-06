@@ -1,5 +1,6 @@
 "use client";
 
+import { FeedPersistence } from "./FeedPersistence";
 import { Leaderboard } from "./Leaderboard";
 import { PaymentStream } from "./PaymentStream";
 import { StatusBar } from "./StatusBar";
@@ -15,6 +16,7 @@ import { paneHeaderStyle } from "./paneStyles";
 export function BazaarTerminal() {
   return (
     <div className="bazaar">
+      <FeedPersistence />
       <div style={{ display: "grid", gridTemplateRows: "56px 1fr 40px", height: "100%", minHeight: 0 }}>
         <TopBar />
 

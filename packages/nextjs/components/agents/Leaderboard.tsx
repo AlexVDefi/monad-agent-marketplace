@@ -2,27 +2,27 @@
 
 import { useFeedStore } from "./feedStore";
 import { paneHeaderStyle } from "./paneStyles";
-import { useReputation } from "./useReputation";
+import { useAgentStats } from "./useAgentStats";
 import { useAccount } from "wagmi";
 import { AGENTS, type AgentMeta } from "~~/services/agents/registry";
 
-/** One leaderboard row: 👍 reputation (live) + this session's settled calls (live) + a rate button. */
+/** One leaderboard row: on-chain calls + 👍 (both persist across refresh) + a rate button. */
 function LeaderEntry({
   agent,
   rank,
-  sessionCalls,
+  calls,
   upvotes,
   onRate,
   canRate,
 }: {
   agent: AgentMeta;
   rank: number;
-  sessionCalls: number;
+  calls: number;
   upvotes: number;
   onRate: (id: number) => void;
   canRate: boolean;
 }) {
-  const top = rank === 1 && (upvotes > 0 || sessionCalls > 0);
+  const top = rank === 1 && (upvotes > 0 || calls > 0);
   return (
     <div
       style={{
@@ -59,7 +59,7 @@ function LeaderEntry({
           </span>
         </div>
         <div className="tnum" style={{ fontSize: 11, color: "var(--text-lo)" }}>
-          {sessionCalls} calls · {upvotes} 👍
+          {calls} calls · {upvotes} 👍
         </div>
       </div>
       <button
@@ -87,18 +87,13 @@ function LeaderEntry({
 }
 
 export function Leaderboard() {
-  const settledCount = useFeedStore(s => s.settledCount); // low-freq trigger
-  const { upvotes, rate } = useReputation();
+  const settledCount = useFeedStore(s => s.settledCount);
+  const { stats, rate } = useAgentStats();
   const { address } = useAccount();
 
-  // recompute per-agent session tallies without subscribing to the fast rows array
-  const rows = useFeedStore.getState().rows;
-  const tally = new Map<number, number>();
-  for (const r of rows) if (r.phase === "settled") tally.set(r.agentId, (tally.get(r.agentId) ?? 0) + 1);
-
   const ranked = [...AGENTS]
-    .map(a => ({ agent: a, sessionCalls: tally.get(a.agentId) ?? 0, up: upvotes[a.agentId] ?? 0 }))
-    .sort((a, b) => b.up - a.up || b.sessionCalls - a.sessionCalls);
+    .map(a => ({ agent: a, calls: stats[a.agentId]?.calls ?? 0, up: stats[a.agentId]?.upvotes ?? 0 }))
+    .sort((a, b) => b.up - a.up || b.calls - a.calls);
 
   const onRate = (id: number) => {
     rate(id).catch(() => {});
@@ -125,7 +120,7 @@ export function Leaderboard() {
             key={r.agent.id}
             agent={r.agent}
             rank={i + 1}
-            sessionCalls={r.sessionCalls}
+            calls={r.calls}
             upvotes={r.up}
             onRate={onRate}
             canRate={Boolean(address)}
@@ -144,7 +139,7 @@ export function Leaderboard() {
           >
             session stats
           </div>
-          <Stat label="settled calls" value={String(settledCount)} />
+          <Stat label="settled (session)" value={String(settledCount)} />
           <Stat label="agents live" value={String(AGENTS.length)} />
           <Stat label="settlement" value="< 1s on Monad" />
         </div>
