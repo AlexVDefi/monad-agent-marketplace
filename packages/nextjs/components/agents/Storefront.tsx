@@ -1,6 +1,7 @@
 "use client";
 
 import { AgentCard } from "./AgentCard";
+import { AgentSwarm } from "./AgentSwarm";
 import { DemoStorm } from "./DemoStorm";
 import { paneHeaderStyle } from "./paneStyles";
 import { AGENTS } from "~~/services/agents/registry";
@@ -26,7 +27,10 @@ export function Storefront() {
           <AgentCard key={a.id} agent={a} />
         ))}
       </div>
-      <div style={{ padding: 16, borderTop: "1px solid var(--line)" }}>
+      <div
+        style={{ padding: 16, borderTop: "1px solid var(--line)", display: "flex", flexDirection: "column", gap: 8 }}
+      >
+        <AgentSwarm />
         <DemoStorm />
       </div>
     </section>
