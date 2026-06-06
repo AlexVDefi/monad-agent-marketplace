@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { type RouteConfig, withX402 } from "@x402/next";
+import { appendCallLog } from "~~/services/agents/callLog";
 import { logCallOnChain, makeTaskHash } from "~~/services/agents/logCall";
 import { getAgent } from "~~/services/agents/registry";
 import { runAgent } from "~~/services/agents/run";
@@ -50,6 +51,17 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     const nonce = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const taskHash = clientTaskHash ?? makeTaskHash(agent.agentId, input, nonce);
+
+    // Mirror the result to a JSONL sink the terminal agent can read/tail + act on.
+    void appendCallLog({
+      agent: agent.id,
+      agentId: agent.agentId,
+      agentName: agent.name,
+      prompt: input,
+      output,
+      priceMicroUsdc: agent.priceMicroUsdc,
+      taskHash,
+    });
 
     // Heartbeat: fire-and-forget so we don't block the 200. The ws CallLogged event drives the
     // on-chain confirmation (explorer link) in the UI.
